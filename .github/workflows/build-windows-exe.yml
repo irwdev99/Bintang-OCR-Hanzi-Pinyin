@@ -33,7 +33,11 @@ jobs:
 
       - name: Show produced artifacts
         run: |
-          Get-ChildItem -Path dist -Recurse || Write-Output "no dist folder found"
+          if (Test-Path dist) {
+            Get-ChildItem -Path dist -Recurse
+          } else {
+            Write-Output "no dist folder found"
+          }
         shell: powershell
 
       - name: Upload exe artifact
