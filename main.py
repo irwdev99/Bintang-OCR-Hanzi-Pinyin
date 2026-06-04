@@ -1,5 +1,6 @@
 import eel
 import os
+import sys
 import json
 import base64
 import requests
@@ -283,8 +284,16 @@ def jalankan_ocr(base64_data, mime_type, filename, ai_choice, enable_correction,
         return json.dumps({"error": str(e)})
 
 if __name__ == '__main__':
+    # Handle PyInstaller --onefile bundled web folder
+    if getattr(sys, 'frozen', False):
+        # Running as compiled EXE
+        web_path = os.path.join(sys._MEIPASS, 'web')
+    else:
+        # Running as Python script
+        web_path = 'web'
+    
     # Initialize Eel application
-    eel.init('web')
+    eel.init(web_path)
     
     # Start app
     print("Membuka Bintang OCR Hanzi Pinyin di port 3000...")
