@@ -1,0 +1,553 @@
+<!doctype html>
+<html style="height: 100%; margin: 0;">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/eel.js"></script>
+  <style>
+    body { margin: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+    #loading-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #0a0a0b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#00f3ff" stroke-width="1.5" style="width: 100px; filter: drop-shadow(0 0 10px #00f3ff); margin-bottom: 24px;">
+      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+    </svg>
+    <h1 style="color: white; font-size: 2rem; font-family: sans-serif; margin-bottom: 8px;">Bintang OCR Hanzi Pinyin</h1>
+    <p style="color: #64748b; font-size: 1rem; font-family: monospace;">made by irwan (irw.dev99@gmail.com)</p>
+  </div>
+
+  <!-- Auth Screen -->
+  <div id="auth-screen" class="fixed inset-0 bg-[#0a0a0b] flex flex-col items-center justify-center z-[5000]">
+    <div class="w-full max-w-sm bg-[#0d0d0f] border border-white/10 p-8 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+      <h2 class="text-xl font-bold text-white mb-6 text-center uppercase tracking-widest">Bintang OCR <span class="text-cyan-400">Login</span></h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-[10px] text-slate-500 uppercase tracking-widest mb-1">Username</label>
+          <input type="text" id="auth-username" class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 uppercase tracking-widest mb-1">Password</label>
+          <input type="password" id="auth-password" class="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        <div id="auth-error" class="hidden text-red-500 text-xs text-center border-t border-red-500/20 pt-2 font-mono mt-2"></div>
+        <div class="flex gap-4 mt-8">
+          <button id="btn-login" class="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-bold uppercase tracking-wider rounded-lg transition-all">Login</button>
+          <button id="btn-register" class="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-wider rounded-lg transition-all border border-white/10">Register</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-[4000] hidden px-4 backdrop-blur-sm">
+    <div class="w-full max-w-md bg-[#0d0d0f] border border-cyan-500/30 p-8 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.1)]">
+      <h2 class="text-lg font-bold text-white mb-2 uppercase tracking-widest border-b border-white/10 pb-4">API Configuration</h2>
+      <div class="space-y-4 mt-6">
+        <div>
+          <label class="block text-[10px] text-slate-500 uppercase tracking-widest mb-1">GEMINI API KEY</label>
+          <input type="password" id="key-gemini" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 uppercase tracking-widest mb-1">GROQ API KEY</label>
+          <input type="password" id="key-groq" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 uppercase tracking-widest mb-1">OPENROUTER API KEY</label>
+          <input type="password" id="key-openrouter" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 uppercase tracking-widest mb-1">GITHUB TOKEN</label>
+          <input type="password" id="key-github" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50" />
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-500 uppercase tracking-widest mb-1">MISTRAL API KEY</label>
+          <input type="password" id="key-mistral" class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50" />
+        </div>
+      </div>
+      <div class="flex gap-4 mt-8">
+        <button id="btn-save-keys" class="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-bold uppercase tracking-wider rounded-lg transition-all">Save Keys</button>
+        <button id="btn-close-settings" class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-wider rounded-lg transition-all border border-white/10">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-col h-screen w-full bg-[#0a0a0b] text-slate-300 font-sans overflow-hidden">
+    <!-- Header Section -->
+    <header class="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#0d0d0f]">
+      <div class="flex items-center gap-3">
+        <div class="p-1.5 rounded bg-cyan-500/10 border border-cyan-500/30">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#00f3ff" stroke-width="2" class="w-6 h-6" style="filter: drop-shadow(0 0 5px #00f3ff);">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white uppercase">Bintang OCR <span class="text-cyan-400">Hanzi Pinyin</span></h1>
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Enterprise Grade v3.2 • made by irwan</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center gap-2">
+          <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+          <span class="text-[11px] font-mono text-emerald-400 tracking-wide">SYSTEM OPERATIONAL</span>
+        </div>
+        <div class="text-right flex items-center gap-4">
+          <p class="text-[10px] text-slate-500 font-mono"><span id="lbl-current-user">irw.dev99@gmail.com</span> <button id="btn-logout" class="ml-2 text-red-400 hover:text-red-300 uppercase underline text-[9px] tracking-widest hidden">Logout</button></p>
+          <button id="btn-settings" class="p-1.5 bg-white/5 hover:bg-white/10 rounded border border-white/10 transition-colors" title="Settings">
+            <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex flex-1 overflow-hidden">
+      <!-- Sidebar Panel -->
+      <aside class="w-[360px] border-r border-white/10 flex flex-col bg-[#0d0d0f]/50 p-6 space-y-6">
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 block">1. Source Configuration</label>
+          <div id="drop-zone" class="group cursor-pointer border-2 border-dashed border-white/10 rounded-xl p-6 transition-all hover:border-cyan-500/50 hover:bg-cyan-500/5 flex flex-col items-center justify-center gap-3 relative">
+            <input type="file" id="file-input" multiple accept=".png,.jpg,.jpeg,.pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            <svg class="w-8 h-8 text-slate-500 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+            <div class="text-center">
+              <span class="text-sm font-medium text-slate-300">Drop files or click</span>
+              <p class="text-[10px] text-slate-500 mt-1">PNG, JPG, JPEG, PDF (Single Page)</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">2. Intelligence Engine</label>
+          <select id="ai-choice" class="w-full bg-black/40 border border-white/10 rounded-lg py-2.5 px-4 text-sm focus:outline-none focus:border-cyan-500/50 appearance-none text-slate-200 cursor-pointer">
+            <option value="Auto Fallback">Auto Fallback (Intelligent)</option>
+            <option value="Gemini 1">Gemini 1.5 Pro</option>
+            <option value="Gemini 2">Gemini 1.5 Flash</option>
+            <option value="Gemini 3">Gemini 2.0 Flash</option>
+            <option value="Groq">Groq Llama 3.2 Vision</option>
+            <option value="GitHub">GitHub GPT-4o-Mini</option>
+            <option value="OpenRouter">OpenRouter Qwen 2 VL</option>
+            <option value="Mistral">Mistral Pixtral 12B</option>
+          </select>
+        </div>
+
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">3. Processing Queue</label>
+          <div id="queue-list" class="flex-1 bg-black/20 rounded-lg border border-white/5 p-2 overflow-y-auto space-y-1">
+            <!-- Queue items will be injected here -->
+          </div>
+        </div>
+
+        <button id="btn-process" class="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest rounded-lg transition-all transform active:scale-95 shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+          Execute OCR Process
+        </button>
+      </aside>
+
+      <!-- Main Content Area -->
+      <section class="flex-1 flex flex-col p-8">
+        <div class="flex gap-1 bg-[#1a1a1c] p-1 rounded-xl self-start mb-6">
+          <button id="tab-output" class="px-6 py-2 rounded-lg bg-[#2d2d30] text-cyan-400 text-xs font-bold uppercase tracking-wider shadow-lg">Current Output</button>
+          <button id="tab-history" class="px-6 py-2 rounded-lg text-slate-500 text-xs font-bold uppercase tracking-wider hover:text-slate-300">Historical Logs</button>
+        </div>
+
+        <div id="view-output" class="flex-1 grid grid-cols-2 gap-8 overflow-hidden">
+          <!-- Preview Box -->
+          <div class="bg-[#0d0d0f] rounded-2xl border border-white/5 flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-white/5 flex justify-between items-center bg-black/20">
+              <span class="text-[10px] font-mono text-slate-500">INPUT_SOURCE_PREVIEW</span>
+              <span id="preview-filename" class="text-[10px] font-mono text-slate-500 truncate max-w-[200px]">-</span>
+            </div>
+            <div class="flex-1 flex items-center justify-center p-4 relative">
+               <div class="w-full h-full border border-white/10 rounded bg-[#1a1a1c] relative flex items-center justify-center overflow-hidden">
+                  <p id="preview-placeholder" class="text-slate-600 font-mono text-xs uppercase tracking-widest">Rendering Image Data...</p>
+                  <img id="image-preview" class="hidden max-w-full max-h-full object-contain" />
+                  <!-- Decorative UI Elements -->
+                  <div class="absolute top-4 left-4 w-4 h-4 border-t border-l border-cyan-500/50"></div>
+                  <div class="absolute top-4 right-4 w-4 h-4 border-t border-r border-cyan-500/50"></div>
+                  <div class="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-cyan-500/50"></div>
+                  <div class="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-cyan-500/50"></div>
+               </div>
+            </div>
+          </div>
+
+          <!-- Output Box -->
+          <div class="bg-[#0d0d0f] rounded-2xl border border-cyan-500/20 flex flex-col overflow-hidden shadow-[0_0_40px_rgba(0,243,255,0.03)] relative">
+            <div class="p-4 border-b border-white/5 flex justify-between items-center bg-cyan-900/10">
+              <span id="status-title" class="text-[10px] font-mono text-cyan-400">VISION_EXTRACTION_READY</span>
+              <div class="flex gap-2">
+                 <button class="w-4 h-4 rounded-full bg-slate-800 hover:bg-slate-700"></button>
+                 <button class="w-4 h-4 rounded-full bg-slate-800 hover:bg-slate-700"></button>
+              </div>
+            </div>
+            <div class="flex-1 p-6 relative flex flex-col">
+              <textarea id="ocr-result" readonly class="flex-1 w-full h-full bg-transparent border-none text-slate-200 font-mono text-lg focus:outline-none resize-none whitespace-pre-wrap leading-relaxed" style="font-family: 'Courier New', monospace;"></textarea>
+              <textarea id="ocr-correction" readonly class="mt-4 h-1/3 w-full bg-black/30 border border-white/10 rounded p-2 text-slate-400 font-mono text-xs focus:outline-none resize-none whitespace-pre-wrap leading-relaxed hidden" placeholder="Corrections Log"></textarea>
+              <!-- Floating Action -->
+              <button id="btn-copy" class="absolute bottom-6 right-6 p-3 bg-slate-800 rounded-full hover:bg-slate-700 border border-white/10 shadow-xl transition-transform hover:scale-110">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-history" class="flex-1 flex flex-col overflow-hidden hidden bg-[#0d0d0f] rounded-2xl border border-white/5 shadow-xl">
+          <div class="p-4 border-b border-white/5 bg-black/20 flex flex-col gap-3">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] font-mono text-slate-500 uppercase">HISTORICAL_LOGS</span>
+              <button id="btn-refresh-history" class="text-xs text-cyan-400 hover:text-cyan-300 font-bold uppercase tracking-wider">Refresh Data</button>
+            </div>
+            <!-- Search & Filters -->
+            <div class="flex items-center gap-3 bg-black/40 p-2 rounded border border-white/5">
+                <input type="text" id="hist-filter-file" placeholder="Search filename or AI model..." class="flex-1 bg-transparent border-none text-xs text-slate-300 font-mono focus:outline-none px-2" />
+                <input type="date" id="hist-filter-date" class="bg-transparent border-none text-xs text-slate-400 font-mono focus:outline-none px-2" style="color-scheme: dark;" />
+            </div>
+          </div>
+          <div id="history-container" class="flex-1 overflow-y-auto p-4 space-y-2">
+            <p class="text-slate-500 text-sm text-center mt-10">No history found</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Status Bar -->
+    <footer class="h-8 border-t border-white/10 bg-black flex items-center px-6 justify-between text-[10px] font-mono text-slate-500 uppercase">
+      <div class="flex gap-6">
+        <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span> CPU LOAD: 14%</div>
+        <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> NETWORK: 2.4MS</div>
+      </div>
+      <div class="tracking-[0.2em]">SECURE SHELL 0xBF81A - BINTANG_OCR_NODE_01</div>
+    </footer>
+  </div>
+
+  <script>
+    setTimeout(() => {
+      document.getElementById('loading-screen').style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('loading-screen').style.display = 'none';
+        // Check auth on startup if ready
+        updateAuthUI();
+      }, 500);
+    }, 3000);
+
+    let currentUser = null;
+
+    // Auth screen logic
+    const authScreen = document.getElementById('auth-screen');
+    const btnLogin = document.getElementById('btn-login');
+    const btnRegister = document.getElementById('btn-register');
+    const authUser = document.getElementById('auth-username');
+    const authPass = document.getElementById('auth-password');
+    const authError = document.getElementById('auth-error');
+    const lblCurrentUser = document.getElementById('lbl-current-user');
+    const btnLogout = document.getElementById('btn-logout');
+
+    function updateAuthUI() {
+        if(currentUser) {
+            lblCurrentUser.innerText = currentUser.toUpperCase();
+            btnLogout.classList.remove('hidden');
+            authScreen.classList.add('hidden');
+            // Load their history on login
+            if (viewHistory && !viewHistory.classList.contains('hidden')) {
+               loadHistory();
+            }
+        } else {
+            lblCurrentUser.innerText = "NOT LOGGED IN";
+            btnLogout.classList.add('hidden');
+            authScreen.classList.remove('hidden');
+        }
+    }
+
+    btnLogin.addEventListener('click', async () => {
+        authError.classList.add('hidden');
+        if(!window.eel) { currentUser = authUser.value || "PREVIEW_USER"; updateAuthUI(); return; }
+        let res = await eel.login_user(authUser.value, authPass.value)();
+        if(res.success) { currentUser = authUser.value; updateAuthUI(); }
+        else { authError.innerText = res.message; authError.classList.remove('hidden'); }
+    });
+    btnRegister.addEventListener('click', async () => {
+        authError.classList.add('hidden');
+        if(!window.eel) { currentUser = authUser.value || "PREVIEW_USER"; updateAuthUI(); return; }
+        let res = await eel.register_user(authUser.value, authPass.value)();
+        if(res.success) { currentUser = authUser.value; updateAuthUI(); }
+        else { authError.innerText = res.message; authError.classList.remove('hidden'); }
+    });
+    btnLogout.addEventListener('click', () => { 
+        currentUser = null; 
+        authUser.value = ""; 
+        authPass.value = ""; 
+        updateAuthUI(); 
+    });
+
+    // Settings Modal Logic
+    const settingsModal = document.getElementById('settings-modal');
+    const btnSettings = document.getElementById('btn-settings');
+    const btnCloseSettings = document.getElementById('btn-close-settings');
+    const btnSaveKeys = document.getElementById('btn-save-keys');
+
+    btnSettings.addEventListener('click', async () => {
+        settingsModal.classList.remove('hidden');
+        if(window.eel) {
+            const keys = await eel.get_api_keys()();
+            document.getElementById('key-gemini').value = keys.GEMINI_API_KEY;
+            document.getElementById('key-groq').value = keys.GROQ_API_KEY;
+            document.getElementById('key-openrouter').value = keys.OPENROUTER_API_KEY;
+            document.getElementById('key-github').value = keys.GITHUB_TOKEN;
+            document.getElementById('key-mistral').value = keys.MISTRAL_API_KEY;
+        }
+    });
+    btnCloseSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
+    btnSaveKeys.addEventListener('click', async () => {
+        if(window.eel) {
+            btnSaveKeys.innerText = "Saving...";
+            await eel.save_api_keys({
+                "GEMINI_API_KEY": document.getElementById('key-gemini').value,
+                "GROQ_API_KEY": document.getElementById('key-groq').value,
+                "OPENROUTER_API_KEY": document.getElementById('key-openrouter').value,
+                "GITHUB_TOKEN": document.getElementById('key-github').value,
+                "MISTRAL_API_KEY": document.getElementById('key-mistral').value,
+            })();
+            btnSaveKeys.innerText = "Saved!";
+            setTimeout(() => { btnSaveKeys.innerText = "Save Keys"; settingsModal.classList.add('hidden'); }, 1000);
+        } else {
+            // Preview logic
+            btnSaveKeys.innerText = "Saved (Mock)!";
+            setTimeout(() => { btnSaveKeys.innerText = "Save Keys"; settingsModal.classList.add('hidden'); }, 1000);
+        }
+    });
+
+    const fileInput = document.getElementById('file-input');
+    const queueList = document.getElementById('queue-list');
+    const btnProcess = document.getElementById('btn-process');
+    const aiChoice = document.getElementById('ai-choice');
+    const imagePreview = document.getElementById('image-preview');
+    const previewPlaceholder = document.getElementById('preview-placeholder');
+    const previewFilename = document.getElementById('preview-filename');
+    const ocrResult = document.getElementById('ocr-result');
+    const ocrCorrection = document.getElementById('ocr-correction');
+    const statusTitle = document.getElementById('status-title');
+    const tabOutput = document.getElementById('tab-output');
+    const tabHistory = document.getElementById('tab-history');
+    const viewOutput = document.getElementById('view-output');
+    const viewHistory = document.getElementById('view-history');
+    const historyContainer = document.getElementById('history-container');
+    const btnCopy = document.getElementById('btn-copy');
+
+    let fileQueue = [];
+    let isProcessing = false;
+
+    // Tabs
+    tabOutput.addEventListener('click', () => {
+      tabOutput.className = "px-6 py-2 rounded-lg bg-[#2d2d30] text-cyan-400 text-xs font-bold uppercase tracking-wider shadow-lg";
+      tabHistory.className = "px-6 py-2 rounded-lg text-slate-500 text-xs font-bold uppercase tracking-wider hover:text-slate-300";
+      viewOutput.classList.remove('hidden');
+      viewHistory.classList.add('hidden');
+    });
+
+    tabHistory.addEventListener('click', async () => {
+      tabHistory.className = "px-6 py-2 rounded-lg bg-[#2d2d30] text-cyan-400 text-xs font-bold uppercase tracking-wider shadow-lg";
+      tabOutput.className = "px-6 py-2 rounded-lg text-slate-500 text-xs font-bold uppercase tracking-wider hover:text-slate-300";
+      viewHistory.classList.remove('hidden');
+      viewOutput.classList.add('hidden');
+      await loadHistory();
+    });
+
+    btnCopy.addEventListener('click', () => {
+      navigator.clipboard.writeText(ocrResult.value);
+      alert('Copied to clipboard');
+    });
+
+    document.getElementById('btn-refresh-history').addEventListener('click', loadHistory);
+
+    let allHistory = [];
+
+    async function loadHistory() {
+      if(!window.eel) {
+          // mock history for preview
+          allHistory = [
+              { filename: "test_invoice_01.png", result: { teks_utama: "MOCK DATA\nREADY" }, timestamp: new Date().toISOString().replace('T', ' ').split('.')[0], ai_choice: "Preview" }
+          ];
+          renderHistory();
+          return;
+      }
+      try {
+        const historyData = await eel.get_history(currentUser || "default")();
+        allHistory = JSON.parse(historyData).reverse(); // newest first
+        renderHistory();
+      } catch(e) {
+        console.error(e);
+      }
+    }
+
+    const histFilterFile = document.getElementById('hist-filter-file');
+    const histFilterDate = document.getElementById('hist-filter-date');
+    histFilterFile.addEventListener('input', renderHistory);
+    histFilterDate.addEventListener('change', renderHistory);
+
+    function renderHistory() {
+        let filtered = allHistory;
+        const term = histFilterFile.value.toLowerCase();
+        const dateVal = histFilterDate.value; // YYYY-MM-DD
+        
+        if(term) {
+            filtered = filtered.filter(i => (i.filename || '').toLowerCase().includes(term) || (i.ai_choice || '').toLowerCase().includes(term));
+        }
+        if(dateVal) {
+            filtered = filtered.filter(i => i.timestamp.startsWith(dateVal));
+        }
+        
+        historyContainer.innerHTML = '';
+        if(filtered.length === 0) {
+          historyContainer.innerHTML = '<p class="text-slate-500 text-sm text-center mt-10 font-mono">No matching history found.</p>';
+          return;
+        }
+        filtered.forEach(item => {
+          const div = document.createElement('div');
+          div.className = "p-3 bg-white/5 rounded border border-white/5 flex flex-col";
+          div.innerHTML = `
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm text-slate-200 font-bold max-w-[200px] truncate" title="${item.filename}">${item.filename}</span>
+              <span class="text-[10px] text-cyan-400 font-mono">${item.timestamp.split(' ')[0]} <span class="bg-black/40 px-1.5 py-0.5 rounded border border-cyan-500/20 ml-2 text-slate-300">${item.ai_choice || 'Auto'}</span></span>
+            </div>
+            <div class="text-xs text-slate-400 font-mono whitespace-pre-wrap max-h-32 overflow-hidden overflow-y-auto">${item.result.teks_utama || 'Error / No Text'}</div>
+          `;
+          historyContainer.appendChild(div);
+        });
+    }
+
+    // Handles file selection
+    fileInput.addEventListener('change', (e) => {
+      Array.from(e.target.files).forEach(file => {
+        fileQueue.push({ id: Math.random().toString(36).substr(2, 9), file, status: 'pending' });
+      });
+      renderQueue();
+      // fileInput.value = ''; // Reset
+    });
+
+    function renderQueue() {
+      queueList.innerHTML = '';
+      fileQueue.forEach(item => {
+        const div = document.createElement('div');
+        
+        let statusStyle = "text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded";
+        let statusText = item.status.toUpperCase();
+        if(item.status === 'processing') {
+          statusStyle = "text-[10px] px-1.5 py-0.5 rounded bg-cyan-500 text-black font-bold uppercase";
+          div.className = "flex items-center justify-between p-2 rounded bg-cyan-500/5 border border-cyan-500/20";
+        } else if (item.status === 'success') {
+          statusStyle = "text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded";
+          div.className = "flex items-center justify-between p-2 rounded bg-emerald-500/5 border border-emerald-500/20";
+        } else if (item.status === 'error') {
+          statusStyle = "text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded";
+          div.className = "flex items-center justify-between p-2 rounded bg-red-500/5 border border-red-500/20";
+        } else {
+          div.className = "flex items-center justify-between p-2 rounded bg-white/5 opacity-60";
+        }
+
+        div.innerHTML = `
+          <span class="text-[12px] truncate max-w-[180px]" title="${item.file.name}">${item.file.name}</span>
+          <span class="${statusStyle}">${statusText}</span>
+        `;
+        queueList.appendChild(div);
+      });
+    }
+
+    const toBase64 = file => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+
+    btnProcess.addEventListener('click', async () => {
+      if(isProcessing) return;
+      const pendingFiles = fileQueue.filter(f => f.status === 'pending');
+      if(pendingFiles.length === 0) return;
+      
+      isProcessing = true;
+      btnProcess.disabled = true;
+      btnProcess.innerHTML = "Processing...";
+      btnProcess.classList.add('opacity-50', 'cursor-not-allowed');
+
+      const selectedAI = aiChoice.value;
+
+      for(let f of pendingFiles) {
+        f.status = 'processing';
+        renderQueue();
+
+        try {
+          const b64 = await toBase64(f.file);
+          
+          if(!f.file.type.includes('pdf')) {
+            imagePreview.src = b64;
+            imagePreview.classList.remove('hidden');
+            previewPlaceholder.classList.add('hidden');
+          } else {
+            imagePreview.classList.add('hidden');
+            previewPlaceholder.classList.remove('hidden');
+            previewPlaceholder.innerText = "PDF Document: Extracting Image...";
+          }
+          previewFilename.innerText = f.file.name;
+          
+          ocrResult.value = "";
+          ocrCorrection.classList.add('hidden');
+          statusTitle.innerText = "VISION_EXTRACTION_PROCESSING";
+          statusTitle.className = "text-[10px] font-mono text-amber-400 animate-pulse";
+
+          if(window.eel) {
+             const base64Data = b64.split(',')[1];
+             const resultStr = await eel.jalankan_ocr(base64Data, f.file.type, f.file.name, selectedAI, currentUser || "default")();
+             
+             try {
+                const jsonObj = JSON.parse(resultStr);
+                ocrResult.value = jsonObj.teks_utama || '';
+                
+                if (jsonObj.koreksi && (Array.isArray(jsonObj.koreksi) ? jsonObj.koreksi.length > 0 : jsonObj.koreksi.trim() !== "")) {
+                   ocrCorrection.value = "Koreksi:\n" + (Array.isArray(jsonObj.koreksi) ? jsonObj.koreksi.join('\n') : jsonObj.koreksi);
+                   ocrCorrection.classList.remove('hidden');
+                }
+             } catch(parseErr) {
+                ocrResult.value = resultStr; // Fallback to raw text
+             }
+
+             f.status = 'success';
+             statusTitle.innerText = "VISION_EXTRACTION_SUCCESS";
+             statusTitle.className = "text-[10px] font-mono text-cyan-400";
+          } else {
+            // Mock delay if eel is not present for previewing visually
+            await new Promise(r => setTimeout(r, 2000));
+            ocrResult.value = f.file.name + "\n\nFake Output\nbecause eel\nis missing.";
+            f.status = 'success';
+          }
+        } catch(err) {
+          f.status = 'error';
+          console.error(err);
+          statusTitle.innerText = "VISION_EXTRACTION_ERROR";
+          statusTitle.className = "text-[10px] font-mono text-red-500";
+          ocrResult.value = "Error: " + err;
+        }
+
+        renderQueue();
+      }
+
+      isProcessing = false;
+      btnProcess.disabled = false;
+      btnProcess.innerHTML = "Execute OCR Process";
+      btnProcess.classList.remove('opacity-50', 'cursor-not-allowed');
+    });
+
+  </script>
+</body>
+</html>
+
+
