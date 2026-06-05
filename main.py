@@ -1,12 +1,29 @@
-import eel
+import sys
+import subprocess
+
+# Auto-install dependencies if they are missing
+try:
+    import eel
+    import fitz  # PyMuPDF
+    import requests
+    from dotenv import load_dotenv, set_key
+    from google import genai
+    from groq import Groq
+except ImportError:
+    print("Dependencies missing. Auto-installing from requirements.txt...")
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    except Exception as e:
+        print(f"Error auto-installing dependencies: {e}")
+        print("Please run: pip install -r requirements.txt")
+
 import os
 import json
 import base64
-import requests
 import datetime
 import hashlib
-import sys
 import fitz  # PyMuPDF
+import eel
 from dotenv import load_dotenv, set_key
 
 # Load env variables
