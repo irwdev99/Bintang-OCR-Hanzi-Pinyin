@@ -31,6 +31,11 @@ jobs:
           pyinstaller --onefile --add-data "web;web" --name "BintangOCRHanziPinyin" main.py
         shell: powershell
 
+      - name: Compile Inno Setup Installer
+        run: |
+          iscc setup.iss
+        shell: powershell
+
       - name: Show produced artifacts
         run: |
           if (Test-Path dist) {
@@ -38,10 +43,15 @@ jobs:
           } else {
             Write-Output "no dist folder found"
           }
+          if (Test-Path Output) {
+            Get-ChildItem -Path Output -Recurse
+          } else {
+            Write-Output "no Output folder found"
+          }
         shell: powershell
 
       - name: Upload exe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
-          path: dist/BintangOCRHanziPinyin.exe
+          name: BintangOCRHanziPinyin-Installer
+          path: Output/Setup_BintangOCRHanziPinyin.exe
