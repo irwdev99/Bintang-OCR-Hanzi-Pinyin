@@ -1,0 +1,52 @@
+name: Build Windows Executable & Installer
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm' # Mempercepat proses build dengan menyimpan cache
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install eel pyinstaller
+          # Jika Anda memiliki file requirements.txt, hapus tanda '#' pada baris di bawah ini:
+          # pip install -r requirements.txt
+
+      - name: Build Executable (PyInstaller)
+        run: npm run build-exe
+
+      - name: Build Installer (Inno Setup)
+        run: npm run build-installer
+
+      - name: Upload Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bintang-OCR-Windows-Installer
+          # PENTING: Sesuaikan path di bawah ini dengan lokasi output installer Inno Setup Anda.
+          # Jika outputnya masuk ke folder "Output", gunakan "Output/*.exe"
+          path: Output/*.exe 
+          if-no-files-found: warn
