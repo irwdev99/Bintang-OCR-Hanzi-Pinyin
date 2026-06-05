@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "curl -sS https://bootstrap.pypa.io/get-pip.py | python - --break-system-packages && python -m pip install --break-system-packages -r requirements.txt && python main.py",
-    "build": "curl -sS https://bootstrap.pypa.io/get-pip.py | python - --break-system-packages && python -m pip install --break-system-packages -r requirements.txt",
-    "build-exe": "python -m pip install --upgrade pip && python -m pip install -r requirements.txt pyinstaller && pyinstaller --onefile --add-data \"web;web\" --name \"BintangOCRHanziPinyin\" main.py",
-    "start": "python main.py",
-    "preview": "python main.py",
-    "clean": "if exist dist rmdir /s /q dist && if exist server.js del /q server.js",
-    "lint": "python -m py_compile main.py"
+    "dev": "curl -sS https://bootstrap.pypa.io/get-pip.py | python3 - --break-system-packages && python3 -m pip install --break-system-packages -r requirements.txt && python3 main.py",
+    "build": "curl -sS https://bootstrap.pypa.io/get-pip.py | python3 - --break-system-packages && python3 -m pip install --break-system-packages -r requirements.txt",
+    "build-exe": "python3 -m pip install --break-system-packages pyinstaller && python3 -m PyInstaller --onefile --add-data \"web;web\" --name \"BintangOCRHanziPinyin\" main.py",
+    "start": "python3 main.py",
+    "preview": "python3 main.py",
+    "clean": "rm -rf dist server.js",
+    "lint": "python3 -m py_compile main.py"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -1,19 +1,22 @@
 import eel
 import os
-import sys
 import json
 import base64
 import requests
 import datetime
 import hashlib
+import sys
 import fitz  # PyMuPDF
 from dotenv import load_dotenv, set_key
 
 # Load env variables
 load_dotenv()
 
+APP_DATA_DIR = os.path.join(os.getenv('APPDATA', ''), 'BintangOCRHanziPinyin')
+os.makedirs(APP_DATA_DIR, exist_ok=True)
+
 # Authentication
-USERS_FILE = 'users.json'
+USERS_FILE = os.path.join(APP_DATA_DIR, 'users.json')
 
 def load_users():
     if os.path.exists(USERS_FILE):
@@ -76,7 +79,7 @@ def get_history_file(username):
     # Sanitize username for filename
     clean_uname = "".join(c for c in username if c.isalnum())
     if not clean_uname: clean_uname = "default"
-    return f"history_{clean_uname}.json"
+    return os.path.join(APP_DATA_DIR, f"history_{clean_uname}.json")
 
 def load_history_file(username):
     hfile = get_history_file(username)
@@ -284,20 +287,24 @@ def jalankan_ocr(base64_data, mime_type, filename, ai_choice, enable_correction,
         return json.dumps({"error": str(e)})
 
 if __name__ == '__main__':
-    # Handle PyInstaller --onefile bundled web folder
-    if getattr(sys, 'frozen', False):
-        # Running as compiled EXE
-        web_path = os.path.join(sys._MEIPASS, 'web')
-    else:
-        # Running as Python script
-        web_path = 'web'
-    
     # Initialize Eel application
-    eel.init(web_path)
+    if getattr(sys, 'frozen', False):
+        web_dir = os.path.join(sys._MEIPASS, 'web')
+    else:
+        web_dir = 'web'
+    eel.init(web_dir)
     
     # Start app
-    print("Membuka Bintang OCR Hanzi Pinyin di port 3000...")
+    print("Memulai Bintang OCR Hanzi Pinyin...")
     try:
-        eel.start('index.html', mode=None, host='0.0.0.0', port=3000, block=True)
+        if getattr(sys, 'frozen', False):
+            # Mode Desktop Native (saat dicompile jadi EXE Windows)
+            eel.start('index.html', mode='chrome', host='0.0.0.0', port=3000, block=True, size=(1280, 800), cmdline_args=['--app=http://localhost:3000'])
+        else:
+            # Mode Cloud / Web Server (Untuk preview di AI Studio ini)
+            print("Berjalan di mode Web Server (Port 3000)...")
+            eel.start('index.html', mode=None, host='0.0.0.0', port=3000, block=True)
     except Exception as e:
-        print(f"Error starting app: {e}")
+        print(f"Gagal membuka browser otomatis: {e}")
+        print("Fallback ke server cloud di port 3000...")
+        eel.start('index.html', mode=None, host='0.0.0.0', port=3000, block=True)
