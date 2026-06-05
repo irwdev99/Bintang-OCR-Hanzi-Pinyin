@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="/eel.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
   <style>
     body { margin: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
     #loading-screen {
@@ -93,6 +95,28 @@
     </div>
   </div>
 
+  <!-- Image Edit Modal -->
+  <div id="image-edit-modal" class="fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-[6000] hidden backdrop-blur-sm p-4 sm:p-8">
+    <div class="w-full max-w-5xl bg-[#0d0d0f] border border-cyan-500/30 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.1)] flex flex-col overflow-hidden h-full">
+      <div class="p-4 border-b border-white/10 flex justify-between items-center bg-black">
+        <h2 class="text-white text-sm font-bold tracking-widest uppercase">Image Editor (Crop & Rotate)</h2>
+        <div class="flex gap-2">
+            <button id="btn-rotate-left" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded border border-white/10 text-xs font-mono">↺ Rotate L</button>
+            <button id="btn-rotate-right" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white rounded border border-white/10 text-xs font-mono">↻ Rotate R</button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-hidden relative bg-[#1a1a1c] p-4 flex items-center justify-center">
+         <div class="w-full h-full">
+            <img id="cropper-image" class="max-w-full max-h-full block" />
+         </div>
+      </div>
+      <div class="p-4 border-t border-white/10 bg-black flex justify-end gap-4 shadow-[0_-10px_20px_rgba(0,0,0,0.5)]">
+        <button id="btn-cancel-edit" class="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-wider rounded border border-white/10 text-xs transition-colors">Cancel</button>
+        <button id="btn-save-edit" class="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold uppercase tracking-wider rounded text-xs transition-colors shadow-[0_0_15px_rgba(6,182,212,0.4)]">Save & Update Queue</button>
+      </div>
+    </div>
+  </div>
+
   <div class="flex flex-col h-screen w-full bg-[#0a0a0b] text-slate-300 font-sans overflow-hidden">
     <!-- Header Section -->
     <header class="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-[#0d0d0f]">
@@ -137,7 +161,23 @@
         </div>
 
         <div>
-          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">2. Intelligence Engine</label>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">2. Extraction Target</label>
+          <div class="flex gap-2 mb-4">
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" name="extract_target" value="Pinyin" class="peer sr-only" checked />
+              <div class="bg-black/40 border border-white/10 rounded-lg py-2 text-center text-[10px] font-bold text-slate-400 peer-checked:bg-cyan-500/20 peer-checked:text-cyan-400 peer-checked:border-cyan-500/50 transition-all uppercase tracking-widest">Pinyin</div>
+            </label>
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" name="extract_target" value="Hanzi" class="peer sr-only" />
+              <div class="bg-black/40 border border-white/10 rounded-lg py-2 text-center text-[10px] font-bold text-slate-400 peer-checked:bg-cyan-500/20 peer-checked:text-cyan-400 peer-checked:border-cyan-500/50 transition-all uppercase tracking-widest">Hanzi</div>
+            </label>
+            <label class="flex-1 cursor-pointer">
+              <input type="radio" name="extract_target" value="Pinyin & Hanzi" class="peer sr-only" />
+              <div class="bg-black/40 border border-white/10 rounded-lg py-2 text-center text-[10px] font-bold text-slate-400 peer-checked:bg-cyan-500/20 peer-checked:text-cyan-400 peer-checked:border-cyan-500/50 transition-all uppercase tracking-widest">Pinyin+Hanzi</div>
+            </label>
+          </div>
+
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">3. Intelligence Engine</label>
           <select id="ai-choice" class="w-full bg-black/40 border border-white/10 rounded-lg py-2.5 px-4 text-sm focus:outline-none focus:border-cyan-500/50 appearance-none text-slate-200 cursor-pointer mb-3">
             <option value="Auto Fallback">Auto Fallback (Intelligent)</option>
             <option value="Gemini 1">Gemini 1 (3.5 Flash)</option>
@@ -157,7 +197,10 @@
         </div>
 
         <div class="flex-1 flex flex-col overflow-hidden">
-          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">3. Processing Queue</label>
+          <div class="flex justify-between items-center mb-2">
+            <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">4. Processing Queue</label>
+            <span id="queue-counter" class="text-[9px] font-mono text-slate-400">0 PND / 0 PRC / 0 SUC</span>
+          </div>
           <div id="queue-list" class="flex-1 bg-black/20 rounded-lg border border-white/5 p-2 overflow-y-auto space-y-1">
             <!-- Queue items will be injected here -->
           </div>
@@ -180,7 +223,10 @@
           <div class="bg-[#0d0d0f] rounded-2xl border border-white/5 flex flex-col overflow-hidden">
             <div class="p-4 border-b border-white/5 flex justify-between items-center bg-black/20">
               <span class="text-[10px] font-mono text-slate-500">INPUT_SOURCE_PREVIEW</span>
-              <span id="preview-filename" class="text-[10px] font-mono text-slate-500 truncate max-w-[200px]">-</span>
+              <div class="flex items-center gap-3">
+                 <span id="preview-filename" class="text-[10px] font-mono text-slate-500 truncate max-w-[150px]" title="Click items in queue to preview">-</span>
+                 <button id="btn-edit-image" class="hidden text-[10px] px-2.5 py-1 bg-cyan-500/10 text-cyan-400 rounded hover:bg-cyan-500/30 border border-cyan-500/30 transition-colors uppercase tracking-widest font-bold">Edit / Crop</button>
+              </div>
             </div>
             <div class="flex-1 flex items-center justify-center p-4 relative">
                <div class="w-full h-full border border-white/10 rounded bg-[#1a1a1c] relative flex items-center justify-center overflow-hidden">
@@ -198,8 +244,15 @@
           <!-- Output Box -->
           <div class="bg-[#0d0d0f] rounded-2xl border border-cyan-500/20 flex flex-col overflow-hidden shadow-[0_0_40px_rgba(0,243,255,0.03)] relative">
             <div class="p-4 border-b border-white/5 flex justify-between items-center bg-cyan-900/10">
-              <span id="status-title" class="text-[10px] font-mono text-cyan-400">VISION_EXTRACTION_READY</span>
+              <div class="flex items-center gap-4 flex-1">
+                <span id="status-title" class="text-[10px] font-mono text-cyan-400 w-[160px]">VISION_EXTRACTION_READY</span>
+                <div class="w-full max-w-[150px] h-1.5 bg-black/50 rounded-full overflow-hidden">
+                  <div id="batch-progress" class="h-full bg-cyan-500 w-0 transition-all duration-300 shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
+                </div>
+              </div>
               <div class="flex gap-2">
+                 <button id="btn-export-txt" class="text-[9px] px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded font-bold uppercase tracking-wider text-slate-300 transition-colors" title="Export to TXT">TXT</button>
+                 <button id="btn-export-word" class="text-[9px] px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded font-bold uppercase tracking-wider text-slate-300 transition-colors mr-2" title="Export to Word">DOCX</button>
                  <button class="w-4 h-4 rounded-full bg-slate-800 hover:bg-slate-700"></button>
                  <button class="w-4 h-4 rounded-full bg-slate-800 hover:bg-slate-700"></button>
               </div>
@@ -224,7 +277,14 @@
             <!-- Search & Filters -->
             <div class="flex items-center gap-3 bg-black/40 p-2 rounded border border-white/5">
                 <input type="text" id="hist-filter-file" placeholder="Search filename or AI model..." class="flex-1 bg-transparent border-none text-xs text-slate-300 font-mono focus:outline-none px-2" />
+                <select id="hist-filter-lang" class="bg-transparent border-none text-xs text-slate-500 font-mono focus:outline-none px-2 cursor-pointer w-24">
+                    <option value="">All Lang</option>
+                    <option value="Pinyin">Pinyin</option>
+                    <option value="Hanzi">Hanzi</option>
+                    <option value="Pinyin & Hanzi">Pinyin+Hanzi</option>
+                </select>
                 <input type="date" id="hist-filter-date" class="bg-transparent border-none text-xs text-slate-400 font-mono focus:outline-none px-2" style="color-scheme: dark;" />
+                <button id="btn-export-logs" class="text-[10px] px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-slate-300 transition-colors uppercase tracking-widest font-bold hidden sm:block">Export JSON</button>
             </div>
           </div>
           <div id="history-container" class="flex-1 overflow-y-auto p-4 space-y-2">
@@ -355,6 +415,9 @@
     const ocrResult = document.getElementById('ocr-result');
     const ocrCorrection = document.getElementById('ocr-correction');
     const statusTitle = document.getElementById('status-title');
+    const batchProgress = document.getElementById('batch-progress');
+    const btnExportTxt = document.getElementById('btn-export-txt');
+    const btnExportWord = document.getElementById('btn-export-word');
     const tabOutput = document.getElementById('tab-output');
     const tabHistory = document.getElementById('tab-history');
     const viewOutput = document.getElementById('view-output');
@@ -364,6 +427,24 @@
 
     let fileQueue = [];
     let isProcessing = false;
+
+    // Load Queues & Config from LocalStorage
+    if (localStorage.getItem('bintang_aiChoice')) aiChoice.value = localStorage.getItem('bintang_aiChoice');
+    if (localStorage.getItem('bintang_correction')) chkCorrection.checked = localStorage.getItem('bintang_correction') === 'true';
+    if (localStorage.getItem('bintang_target')) {
+       const tgt = localStorage.getItem('bintang_target');
+       const rb = document.querySelector(`input[name="extract_target"][value="${tgt}"]`);
+       if(rb) rb.checked = true;
+    }
+
+    aiChoice.addEventListener('change', () => localStorage.setItem('bintang_aiChoice', aiChoice.value));
+    chkCorrection.addEventListener('change', () => localStorage.setItem('bintang_correction', chkCorrection.checked));
+    document.querySelectorAll('input[name="extract_target"]').forEach(rb => {
+       rb.addEventListener('change', () => localStorage.setItem('bintang_target', rb.value));
+    });
+
+    // Save/Restore Queue Data (Basic config only without files to persist intent)
+    // Actually persisting full generic files isn't secure in JS, skip queue persisting.
 
     // Tabs
     tabOutput.addEventListener('click', () => {
@@ -379,6 +460,115 @@
       viewHistory.classList.remove('hidden');
       viewOutput.classList.add('hidden');
       await loadHistory();
+    });
+
+    // Image Editor Logic
+    let currentEditId = null;
+    let cropper = null;
+
+    async function openEditor(id) {
+        const item = fileQueue.find(f => f.id === id);
+        if(!item) return;
+        currentEditId = id;
+        const b64 = item.editedBase64 || await toBase64(item.file);
+        
+        // Destroy existing instance if active
+        if(cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+
+        const editImg = document.getElementById('cropper-image');
+        editImg.src = b64;
+        document.getElementById('image-edit-modal').classList.remove('hidden');
+        
+        // Wait for modal transition to calculate proper dimensions
+        setTimeout(() => {
+            cropper = new Cropper(editImg, {
+                viewMode: 2,
+                autoCropArea: 0.9,
+                background: false,
+                zoomable: true,
+                rotatable: true,
+                scalable: true
+            });
+        }, 150);
+    }
+
+    document.getElementById('btn-save-edit').addEventListener('click', () => {
+        if(!cropper || !currentEditId) return;
+        
+        const canvas = cropper.getCroppedCanvas({
+            imageSmoothingEnabled: true,
+            imageSmoothingQuality: 'high',
+        });
+        
+        const item = fileQueue.find(f => f.id === currentEditId);
+        if(item) {
+            item.editedBase64 = canvas.toDataURL(item.file.type || 'image/png');
+            // Update preview
+            if (!imagePreview.classList.contains('hidden') && previewFilename.innerText === item.file.name) {
+                imagePreview.src = item.editedBase64;
+            }
+        }
+        closeEditor();
+    });
+
+    document.getElementById('btn-cancel-edit').addEventListener('click', closeEditor);
+
+    function closeEditor() {
+        document.getElementById('image-edit-modal').classList.add('hidden');
+        if(cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+        currentEditId = null;
+    }
+
+    document.getElementById('btn-rotate-left').addEventListener('click', () => {
+        if(cropper) cropper.rotate(-90);
+    });
+    document.getElementById('btn-rotate-right').addEventListener('click', () => {
+        if(cropper) cropper.rotate(90);
+    });
+
+    // Export Logs
+    document.getElementById('btn-export-logs').addEventListener('click', () => {
+        let filtered = allHistory;
+        const term = histFilterFile.value.toLowerCase();
+        const dateVal = histFilterDate.value;
+        const langVal = histFilterLang.value;
+        
+        if(term) filtered = filtered.filter(i => (i.filename || '').toLowerCase().includes(term) || (i.ai_choice || '').toLowerCase().includes(term));
+        if(dateVal) filtered = filtered.filter(i => i.timestamp.startsWith(dateVal));
+        if(langVal) filtered = filtered.filter(i => i.result && i.result.target_output === langVal);
+
+        if(filtered.length === 0) return alert('No data to export');
+        
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filtered, null, 2));
+        const anchor = document.createElement('a');
+        anchor.href = dataStr;
+        anchor.download = "ocr_historical_logs.json";
+        anchor.click();
+    });
+
+    btnExportWord.addEventListener('click', () => {
+        if(!ocrResult.value) return;
+        const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML To Doc</title></head><body><p style='white-space: pre-wrap; font-family: monospace;'>${ocrResult.value.replace(/\n/g, '<br>')}</p></body></html>`;
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Hanzi_OCR_${new Date().getTime()}.doc`;
+        a.click();
+    });
+
+    btnExportTxt.addEventListener('click', () => {
+        if(!ocrResult.value) return;
+        const blob = new Blob([ocrResult.value], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Hanzi_OCR_${new Date().getTime()}.txt`;
+        a.click();
     });
 
     btnCopy.addEventListener('click', () => {
@@ -410,19 +600,25 @@
 
     const histFilterFile = document.getElementById('hist-filter-file');
     const histFilterDate = document.getElementById('hist-filter-date');
+    const histFilterLang = document.getElementById('hist-filter-lang');
     histFilterFile.addEventListener('input', renderHistory);
     histFilterDate.addEventListener('change', renderHistory);
+    histFilterLang.addEventListener('change', renderHistory);
 
     function renderHistory() {
         let filtered = allHistory;
         const term = histFilterFile.value.toLowerCase();
         const dateVal = histFilterDate.value; // YYYY-MM-DD
+        const langVal = histFilterLang.value;
         
         if(term) {
             filtered = filtered.filter(i => (i.filename || '').toLowerCase().includes(term) || (i.ai_choice || '').toLowerCase().includes(term));
         }
         if(dateVal) {
             filtered = filtered.filter(i => i.timestamp.startsWith(dateVal));
+        }
+        if(langVal) {
+            filtered = filtered.filter(i => i.result && i.result.target_output === langVal);
         }
         
         historyContainer.innerHTML = '';
@@ -447,7 +643,7 @@
     // Handles file selection
     fileInput.addEventListener('change', (e) => {
       Array.from(e.target.files).forEach(file => {
-        fileQueue.push({ id: Math.random().toString(36).substr(2, 9), file, status: 'pending' });
+        fileQueue.push({ id: Math.random().toString(36).substr(2, 9), file, status: 'pending', editedBase64: null });
       });
       renderQueue();
       // fileInput.value = ''; // Reset
@@ -455,14 +651,17 @@
 
     function renderQueue() {
       queueList.innerHTML = '';
+      let counts = { pending: 0, processing: 0, success: 0, error: 0 };
+
       fileQueue.forEach(item => {
+        counts[item.status] = (counts[item.status] || 0) + 1;
         const div = document.createElement('div');
         
         let statusStyle = "text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded";
         let statusText = item.status.toUpperCase();
         if(item.status === 'processing') {
-          statusStyle = "text-[10px] px-1.5 py-0.5 rounded bg-cyan-500 text-black font-bold uppercase";
-          div.className = "flex items-center justify-between p-2 rounded bg-cyan-500/5 border border-cyan-500/20";
+          statusStyle = "text-[10px] px-1.5 py-0.5 rounded bg-amber-500 text-black font-bold uppercase animate-pulse";
+          div.className = "flex items-center justify-between p-2 rounded bg-amber-500/5 border border-amber-500/20";
         } else if (item.status === 'success') {
           statusStyle = "text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded";
           div.className = "flex items-center justify-between p-2 rounded bg-emerald-500/5 border border-emerald-500/20";
@@ -470,15 +669,39 @@
           statusStyle = "text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded";
           div.className = "flex items-center justify-between p-2 rounded bg-red-500/5 border border-red-500/20";
         } else {
-          div.className = "flex items-center justify-between p-2 rounded bg-white/5 opacity-60";
+          div.className = "flex items-center justify-between p-2 rounded bg-white/5 opacity-60 cursor-pointer hover:border-cyan-500/30 hover:bg-white/10 transition-colors border border-transparent";
         }
 
         div.innerHTML = `
-          <span class="text-[12px] truncate max-w-[180px]" title="${item.file.name}">${item.file.name}</span>
-          <span class="${statusStyle}">${statusText}</span>
+          <span class="text-[12px] truncate max-w-[180px] pointer-events-none" title="${item.file.name}">${item.file.name}</span>
+          <span class="${statusStyle} pointer-events-none">${statusText}</span>
         `;
+
+        if (item.status === 'pending' || item.status === 'error') {
+            div.addEventListener('click', async () => {
+                previewFilename.innerText = item.file.name;
+                if(item.file.type.includes('pdf')) {
+                    previewPlaceholder.innerText = "PDF Document: Extraction on execute.";
+                    imagePreview.classList.add('hidden');
+                    previewPlaceholder.classList.remove('hidden');
+                    document.getElementById('btn-edit-image').classList.add('hidden');
+                } else {
+                    const b64 = item.editedBase64 || await toBase64(item.file);
+                    item.editedBase64 = b64; // cache it once requested
+                    imagePreview.src = b64;
+                    imagePreview.classList.remove('hidden');
+                    previewPlaceholder.classList.add('hidden');
+                    const btnEdit = document.getElementById('btn-edit-image');
+                    btnEdit.classList.remove('hidden');
+                    btnEdit.onclick = () => openEditor(item.id);
+                }
+            });
+        }
+
         queueList.appendChild(div);
       });
+
+      document.getElementById('queue-counter').innerText = `${counts.pending} PND / ${counts.processing} PRC / ${counts.success} SUC`;
     }
 
     const toBase64 = file => new Promise((resolve, reject) => {
@@ -500,22 +723,30 @@
 
       const selectedAI = aiChoice.value;
       const enableCorrection = chkCorrection.checked;
+      const targetOutput = document.querySelector('input[name="extract_target"]:checked').value;
+      
+      const totalPending = pendingFiles.length;
+      let completedCount = 0;
+      batchProgress.style.width = '2%';
 
       for(let f of pendingFiles) {
         f.status = 'processing';
         renderQueue();
 
         try {
-          const b64 = await toBase64(f.file);
+          // If it was edited in UI, use editedBase64, else load from file
+          const b64 = f.editedBase64 || await toBase64(f.file);
           
           if(!f.file.type.includes('pdf')) {
             imagePreview.src = b64;
             imagePreview.classList.remove('hidden');
             previewPlaceholder.classList.add('hidden');
+            document.getElementById('btn-edit-image').classList.add('hidden'); // hide while processing
           } else {
             imagePreview.classList.add('hidden');
             previewPlaceholder.classList.remove('hidden');
             previewPlaceholder.innerText = "PDF Document: Extracting Image...";
+            document.getElementById('btn-edit-image').classList.add('hidden');
           }
           previewFilename.innerText = f.file.name;
           
@@ -526,11 +757,20 @@
 
           if(window.eel) {
              const base64Data = b64.split(',')[1];
-             const resultStr = await eel.jalankan_ocr(base64Data, f.file.type, f.file.name, selectedAI, enableCorrection, currentUser || "default")();
+             const resultStr = await eel.jalankan_ocr(base64Data, f.file.type, f.file.name, selectedAI, enableCorrection, targetOutput, currentUser || "default")();
              
              try {
                 const jsonObj = JSON.parse(resultStr);
-                ocrResult.value = jsonObj.teks_utama || '';
+                if (jsonObj.error) {
+                    ocrResult.value = "Error: " + jsonObj.error + (jsonObj.raw ? "\n\nRaw Output:\n" + jsonObj.raw : "");
+                    f.status = 'error';
+                    statusTitle.innerText = "VISION_EXTRACTION_FAIL";
+                    statusTitle.className = "text-[10px] font-mono text-red-500";
+                } else if (jsonObj.teks_utama) {
+                    ocrResult.value = jsonObj.teks_utama;
+                } else {
+                    ocrResult.value = JSON.stringify(jsonObj, null, 2);
+                }
                 
                 if (jsonObj.koreksi && enableCorrection) {
                    ocrCorrection.value = "Koreksi:\n" + (Array.isArray(jsonObj.koreksi) ? jsonObj.koreksi.join('\n') : jsonObj.koreksi);
@@ -557,8 +797,14 @@
           ocrResult.value = "Error: " + err;
         }
 
+        completedCount++;
+        batchProgress.style.width = Math.max(2, Math.floor((completedCount / totalPending) * 100)) + "%";
+
         renderQueue();
       }
+
+      batchProgress.style.width = "100%";
+      setTimeout(() => { batchProgress.style.width = '0'; statusTitle.innerText = "ALL_TASKS_COMPLETED"; }, 2000);
 
       isProcessing = false;
       btnProcess.disabled = false;

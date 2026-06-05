@@ -106,17 +106,35 @@ def save_to_history(username, filename, result_json, ai_choice):
 def get_history(username):
     return json.dumps(load_history_file(username), ensure_ascii=False)
 
-def get_system_prompt(enable_correction):
-    base_prompt = "AHLI LITERASI PINYIN BAKU (VERSI 3.2).\n"
-    base_prompt += "Lakukan ekstraksi murni sesuai visual (Tahap 1).\n"
-    base_prompt += "Susun Pinyin menurun (vertikal), 1 kata 1 baris, dipisahkan per kolom menggunakan \\n."
+def get_system_prompt(enable_correction, target_output):
+    if target_output == "Pinyin & Hanzi":
+        jenis_ekstraksi = "PINYIN beserta HANZI-nya"
+        contoh_baris = "Halaman 1\n\nKolom 1 (Paling Kanan)\n[Pinyin 1] [Hanzi 1]\n[Pinyin 2] [Hanzi 2]\n\nKolom 2\n[Pinyin 1] [Hanzi 1]\n[Pinyin 2] [Hanzi 2]"
+    elif target_output == "Hanzi":
+        jenis_ekstraksi = "hanya HANZI"
+        contoh_baris = "Halaman 1\n\nKolom 1 (Paling Kanan)\n[Hanzi 1]\n[Hanzi 2]\n\nKolom 2\n[Hanzi 1]\n[Hanzi 2]"
+    else:
+        jenis_ekstraksi = "hanya PINYIN"
+        contoh_baris = "Halaman 1\n\nKolom 1 (Paling Kanan)\n[Pinyin 1]\n[Pinyin 2]\n\nKolom 2\n[Pinyin 1]\n[Pinyin 2]"
+
+    base_prompt = f"Anda adalah AHLI LITERASI MANDARIN (VERSI 4.0).\n"
+    base_prompt += f"Lakukan ekstraksi Teks ({jenis_ekstraksi}) dari gambar yang diberikan.\n\n"
+    
+    base_prompt += "ATURAN FORMAT EKSTRAKSI (SANGAT KETAT):\n"
+    base_prompt += "1. Urutan kolom dibaca dari KANAN ke KIRI.\n"
+    base_prompt += "2. Setiap kata/karakter harus berada di barisnya sendiri (vertikal ke bawah).\n"
+    base_prompt += "3. Teks harus dikelompokkan per kolom, seperti contoh di bawah ini.\n\n"
+    
+    base_prompt += "CONTOH TEKS YANG DIINGINKAN (Ganti dengan teks aslinya):\n"
+    base_prompt += f"{contoh_baris}\n...dan seterusnya ke arah kiri.\n\n"
+
+    base_prompt += "ATURAN RESPONSE JSON:\n"
+    base_prompt += "Kirimkan output HANYA dalam format JSON Object yang rapi.\n"
     
     if enable_correction:
-        base_prompt += "\nLalu verifikasi/koreksi (Tahap 2)."
-        base_prompt += "\nWajib kembalikan format JSON murni.\nFormat key: {\"teks_utama\": \"...\", \"koreksi\": [\"...\"]}"
+        base_prompt += "{\n  \"teks_utama\": \"(MASUKKAN SELURUH TEKS EKSTRAKSI DISINI DENGAN FORMAT DI ATAS. Gunakan newline ganda antar kolom.)\",\n  \"koreksi\": [\"koreksi 1\", \"koreksi 2\"]\n}"
     else:
-        base_prompt += "\nJANGAN lakukan verifikasi/koreksi. Abaikan Tahap 2."
-        base_prompt += "\nWajib kembalikan format JSON murni.\nFormat key: {\"teks_utama\": \"...\"}"
+        base_prompt += "{\n  \"teks_utama\": \"(MASUKKAN SELURUH TEKS EKSTRAKSI DISINI DENGAN FORMAT DI ATAS. Gunakan newline ganda antar kolom.)\"\n}"
         
     return base_prompt
 
@@ -134,7 +152,7 @@ def convert_pdf_to_base64_image(base64_data):
     # Encode back to base64
     return base64.b64encode(img_bytes).decode('utf-8'), "image/png"
 
-def call_gemini(base64_data, mime_type, model_name, api_key_name, enable_correction):
+def call_gemini(base64_data, mime_type, model_name, api_key_name, enable_correction, target_output):
     # Import google.genai dynamic initialization
     from google import genai
     from google.genai import types
@@ -145,7 +163,7 @@ def call_gemini(base64_data, mime_type, model_name, api_key_name, enable_correct
         
     client = genai.Client(api_key=api_key)
     
-    prompt = get_system_prompt(enable_correction)
+    prompt = get_system_prompt(enable_correction, target_output)
     
     response = client.models.generate_content(
         model=model_name,
@@ -162,7 +180,7 @@ def call_gemini(base64_data, mime_type, model_name, api_key_name, enable_correct
     )
     return response.text
 
-def call_groq(base64_data, mime_type, enable_correction):
+def call_groq(base64_data, mime_type, enable_correction, target_output):
     from groq import Groq
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key: raise Exception("GROQ_API_KEY KOSONG")
@@ -170,7 +188,7 @@ def call_groq(base64_data, mime_type, enable_correction):
     
     # Needs data URI pattern
     data_uri = f"data:{mime_type};base64,{base64_data}"
-    prompt = get_system_prompt(enable_correction)
+    prompt = get_system_prompt(enable_correction, target_output)
     
     completion = client.chat.completions.create(
         model="llama-3.2-90b-vision-preview",
@@ -186,7 +204,7 @@ def call_groq(base64_data, mime_type, enable_correction):
     )
     return completion.choices[0].message.content
 
-def call_openai_compatible(base64_data, mime_type, endpoint, api_key, model_name, enable_correction):
+def call_openai_compatible(base64_data, mime_type, endpoint, api_key, model_name, enable_correction, target_output):
     if not api_key: raise Exception(f"API KEY KOSONG untuk {model_name}")
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -194,7 +212,7 @@ def call_openai_compatible(base64_data, mime_type, endpoint, api_key, model_name
     }
     
     data_uri = f"data:{mime_type};base64,{base64_data}"
-    prompt = get_system_prompt(enable_correction)
+    prompt = get_system_prompt(enable_correction, target_output)
     
     payload = {
         "model": model_name,
@@ -213,78 +231,94 @@ def call_openai_compatible(base64_data, mime_type, endpoint, api_key, model_name
     return response.json()['choices'][0]['message']['content']
 
 
+def parse_json_result(res_str):
+    clean_json = res_str
+    if '```json' in clean_json: clean_json = clean_json.split('```json')[1].split('```')[0]
+    elif '```' in clean_json: clean_json = clean_json.split('```')[1].split('```')[0]
+    return json.loads(clean_json.strip())
+
 @eel.expose
-def jalankan_ocr(base64_data, mime_type, filename, ai_choice, enable_correction, username="default"):
-    print(f"Memproses {filename} via {ai_choice} (Koreksi: {enable_correction})...")
+def jalankan_ocr(base64_data, mime_type, filename, ai_choice, enable_correction, target_output, username="default"):
+    print(f"Memproses {filename} varian {target_output} via {ai_choice} (Koreksi: {enable_correction})...")
     
-    # PDF Handling
+    # Image Preparation (Support multi-page PDFs)
+    images_to_process = []
     if 'pdf' in mime_type.lower():
         try:
-            base64_data, mime_type = convert_pdf_to_base64_image(base64_data)
+            pdf_bytes = base64.b64decode(base64_data)
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            for i in range(len(doc)):
+                page = doc.load_page(i)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
+                b64 = base64.b64encode(pix.tobytes("png")).decode('utf-8')
+                images_to_process.append((b64, "image/png"))
         except Exception as e:
             return json.dumps({"error": f"Gagal convert PDF: {str(e)}"})
-
-    # Logic AI
-    result_text = None
-    
-    def try_gemini1(): return call_gemini(base64_data, mime_type, "gemini-3.5-flash", "GEMINI_API_KEY", enable_correction)
-    def try_gemini2(): return call_gemini(base64_data, mime_type, "gemini-3.5-flash", "GEMINI_API_KEY2", enable_correction)
-    def try_gemini3(): return call_gemini(base64_data, mime_type, "gemini-3.5-flash", "GEMINI_API_KEY3", enable_correction)
-    def try_groq(): return call_groq(base64_data, mime_type, enable_correction)
-    def try_github(): return call_openai_compatible(base64_data, mime_type, "https://models.inference.ai.azure.com/chat/completions", os.getenv("GITHUB_TOKEN"), "gpt-4o", enable_correction)
-    def try_openrouter(): return call_openai_compatible(base64_data, mime_type, "https://openrouter.ai/api/v1/chat/completions", os.getenv("OPENROUTER_API_KEY"), "qwen/qwen-2-vl-72b-instruct:free", enable_correction)
-    def try_mistral(): return call_openai_compatible(base64_data, mime_type, "https://api.mistral.ai/v1/chat/completions", os.getenv("MISTRAL_API_KEY"), "pixtral-12b-2409", enable_correction)
-
-    if ai_choice == "Auto Fallback":
-        fallbacks = [
-            ("Gemini 1", try_gemini1),
-            ("Gemini 2", try_gemini2),
-            ("Gemini 3", try_gemini3),
-            ("Groq", try_groq),
-            ("GitHub", try_github),
-            ("OpenRouter", try_openrouter),
-            ("Mistral", try_mistral)
-        ]
-        
-        last_error = ""
-        for name, func in fallbacks:
-            try:
-                print(f"Mencoba {name}...")
-                result_text = func()
-                break
-            except Exception as e:
-                print(f"{name} gagal: {e}")
-                last_error = str(e)
-                continue
-                
-        if not result_text:
-            return json.dumps({"error": f"Semua service Auto Fallback gagal. Last error: {last_error}"})
     else:
-        # specific choice
-        try:
-            if ai_choice == "Gemini 1": result_text = try_gemini1()
-            elif ai_choice == "Gemini 2": result_text = try_gemini2()
-            elif ai_choice == "Gemini 3": result_text = try_gemini3()
-            elif ai_choice == "Groq": result_text = try_groq()
-            elif ai_choice == "GitHub": result_text = try_github()
-            elif ai_choice == "OpenRouter": result_text = try_openrouter()
-            elif ai_choice == "Mistral": result_text = try_mistral()
-            else: result_text = try_gemini1()
-        except Exception as e:
-            return json.dumps({"error": str(e)})
+        images_to_process.append((base64_data, mime_type))
 
-    # Validation
-    try:
-        # Clean markdown codeblocks if they exist
-        clean_json = result_text.replace('```json', '').replace('```', '').strip()
-        parsed_json = json.loads(clean_json)
-        # Simpan History
-        save_to_history(username, filename, parsed_json, ai_choice)
-        return clean_json
-    except json.JSONDecodeError:
-        return json.dumps({"error": "Output dari AI bukan JSON yang valid", "raw": result_text})
-    except Exception as e:
-        return json.dumps({"error": str(e)})
+    # Eksekusi AI untuk setiap gambar/halaman
+    combined_teks_utama = ""
+    combined_koreksi = []
+    
+    # Progress info function
+    def report_progress(current, total):
+        pass # Optional to report back
+        
+    for idx, (b64, mtype) in enumerate(images_to_process):
+        result_text = None
+        
+        def try_gemini1(): return call_gemini(b64, mtype, "gemini-3.5-flash", "GEMINI_API_KEY", enable_correction, target_output)
+        def try_gemini2(): return call_gemini(b64, mtype, "gemini-3.5-flash", "GEMINI_API_KEY2", enable_correction, target_output)
+        def try_gemini3(): return call_gemini(b64, mtype, "gemini-3.5-flash", "GEMINI_API_KEY3", enable_correction, target_output)
+        def try_groq(): return call_groq(b64, mtype, enable_correction, target_output)
+        def try_github(): return call_openai_compatible(b64, mtype, "https://models.inference.ai.azure.com/chat/completions", os.getenv("GITHUB_TOKEN"), "gpt-4o", enable_correction, target_output)
+        def try_openrouter(): return call_openai_compatible(b64, mtype, "https://openrouter.ai/api/v1/chat/completions", os.getenv("OPENROUTER_API_KEY"), "qwen/qwen-2-vl-72b-instruct:free", enable_correction, target_output)
+        def try_mistral(): return call_openai_compatible(b64, mtype, "https://api.mistral.ai/v1/chat/completions", os.getenv("MISTRAL_API_KEY"), "pixtral-12b-2409", enable_correction, target_output)
+
+        if ai_choice == "Auto Fallback":
+            fallbacks = [("Gemini 1", try_gemini1), ("Gemini 2", try_gemini2), ("Gemini 3", try_gemini3), ("Groq", try_groq), ("GitHub", try_github), ("OpenRouter", try_openrouter), ("Mistral", try_mistral)]
+            last_error = ""
+            for name, func in fallbacks:
+                try:
+                    result_text = func()
+                    break
+                except Exception as e:
+                    last_error = str(e)
+                    continue
+            if not result_text: return json.dumps({"error": f"Semua service Auto Fallback gagal. Last error: {last_error}"})
+        else:
+            try:
+                if ai_choice == "Gemini 1": result_text = try_gemini1()
+                elif ai_choice == "Gemini 2": result_text = try_gemini2()
+                elif ai_choice == "Gemini 3": result_text = try_gemini3()
+                elif ai_choice == "Groq": result_text = try_groq()
+                elif ai_choice == "GitHub": result_text = try_github()
+                elif ai_choice == "OpenRouter": result_text = try_openrouter()
+                elif ai_choice == "Mistral": result_text = try_mistral()
+                else: result_text = try_gemini1()
+            except Exception as e:
+                return json.dumps({"error": str(e)})
+
+        try:
+            parsed = parse_json_result(result_text)
+            if combined_teks_utama: combined_teks_utama += "\n\n"
+            combined_teks_utama += f"--- HALAMAN {idx+1} ---\n" + parsed.get('teks_utama', '')
+            
+            koreksi = parsed.get('koreksi', [])
+            if isinstance(koreksi, list): combined_koreksi.extend(koreksi)
+            elif isinstance(koreksi, str): combined_koreksi.append(koreksi)
+        except json.JSONDecodeError:
+            return json.dumps({"error": f"Output dari AI bukan JSON yang valid di halaman {idx+1}", "raw": result_text})
+
+    final_result = {
+        "teks_utama": combined_teks_utama,
+        "koreksi": combined_koreksi,
+        "target_output": target_output
+    }
+    
+    save_to_history(username, filename, final_result, ai_choice)
+    return json.dumps(final_result, ensure_ascii=False)
 
 if __name__ == '__main__':
     # Initialize Eel application
